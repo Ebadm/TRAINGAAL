@@ -29,6 +29,7 @@ class swat_load_dataset(Dataset):
         # xlsx_file = 'SWaT_Dataset_Normal_v0.xlsx'
         # df = pd.read_excel(xlsx_file, engine='openpyxl', header=1)  # Read the file
         x_train = np.load('swat-2015-data.npy')
+        x_train  = x_train[:7000, :]
         df = pd.DataFrame(x_train)
 
         if self.verbose:
