@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 from torch.autograd.variable import Variable
 from swat_loader import *
 from GANModels import *
+import argparse
 
 def train_gan(enable_cuda=False):
     # Check if CUDA is available and enabled
@@ -80,5 +81,13 @@ def train_gan(enable_cuda=False):
 
 # You can call your function with the desired argument here
 if __name__ == "__main__":
-    # Enable or disable CUDA by setting the argument accordingly
-    train_gan(enable_cuda=False)
+    # Define and parse command line arguments
+    parser = argparse.ArgumentParser(description='GAN training script')
+    parser.add_argument('--enable_cuda', type=bool, default=False, 
+                        help='Enable CUDA (default: False)')
+    args = parser.parse_args()
+
+    # Enable or disable CUDA based on command line argument
+    train_gan(enable_cuda=args.enable_cuda)
+
+#python Training.py --enable_cuda True
