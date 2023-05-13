@@ -1,0 +1,3 @@
+We have added the active learning component:
+      25% of the most uncertain samples will be used for training.
+      # Compute loss using the selected samples

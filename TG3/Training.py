@@ -11,8 +11,11 @@ import argparse
 import gc
 
 
-
-
+def calculate_uncertainty(scores):
+    probabilities = F.softmax(scores, dim=1)
+    log_probabilities = F.log_softmax(scores, dim=1)
+    uncertainty = -1.0 * (probabilities * log_probabilities).sum(1)
+    return uncertainty
 
 
 def train_gan(enable_cuda=False):
@@ -52,6 +55,7 @@ def train_gan(enable_cuda=False):
     num_epochs = 100
     critic_iterations = 5
     clip_value = 0.01
+    active_learning_percentage = 0.25  # This means 25% of the most uncertain samples will be used for training.
 
 
     for epoch in range(num_epochs):
@@ -59,44 +63,45 @@ def train_gan(enable_cuda=False):
             real_data = real_data.to(device)
             batch_size = real_data.size(0)
 
-
             # Train the Discriminator
             for _ in range(critic_iterations):
                 d_optimizer.zero_grad()
 
-
                 real_data = Variable(real_data)
                 real_preds = discriminator(real_data)
 
-
+                # Generate synthetic samples
                 noise = Variable(torch.randn(batch_size, generator.latent_dim)).to(device)
                 fake_data = generator(noise)
-                fake_preds = discriminator(fake_data.detach())
 
+                # Calculate uncertainty of the discriminator
+                fake_scores = discriminator(fake_data.detach())
+                uncertainties = calculate_uncertainty(fake_scores)
 
-                d_loss = -torch.mean(real_preds) + torch.mean(fake_preds)
+                # Select the most uncertain samples
+                _, indices = torch.topk(uncertainties, int(active_learning_percentage * batch_size))
+                selected_fake_data = fake_data[indices]
+
+                # Compute loss using the selected samples
+                selected_fake_preds = discriminator(selected_fake_data)
+                d_loss = -torch.mean(real_preds) + torch.mean(selected_fake_preds)
                 d_loss.backward()
                 d_optimizer.step()
-
 
                 # Clip discriminator weights
                 for p in discriminator.parameters():
                     p.data.clamp_(-clip_value, clip_value)
 
-
             # Train the Generator
             g_optimizer.zero_grad()
-
 
             noise = Variable(torch.randn(batch_size, generator.latent_dim)).to(device)
             fake_data = generator(noise)
             fake_preds = discriminator(fake_data)
 
-
             g_loss = -torch.mean(fake_preds)
             g_loss.backward()
             g_optimizer.step()
-
 
             print("Epoch [{}/{}], Batch [{}/{}], D Loss: {:.4f}, G Loss: {:.4f}".format(
                 epoch, num_epochs, batch_idx, len(data_loader), d_loss.item(), g_loss.item()))

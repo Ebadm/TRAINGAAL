@@ -34,7 +34,8 @@ class Generator(nn.Module):
 
 
     def forward(self, z):
-        x = self.embedding(z).view(-1, self.seq_len, self.embed_dim)
+        batch_size = x.shape[0]  # Store the batch size
+        x = self.embedding(z).view(batch_size, self.seq_len, self.embed_dim)
         x = x + self.positional_encoding
         for layer in self.transformer_layers:
             x = layer(x)
@@ -153,7 +154,8 @@ class Discriminator(nn.Module):
 
 
     def forward(self, x):
-        x = self.embedding(x).view(-1, self.seq_len, self.embed_dim)
+        batch_size = x.shape[0]  # Store the batch size
+        x = self.embedding(x).view(batch_size, self.seq_len, self.embed_dim)
         x = x + self.positional_encoding
         for layer in self.transformer_layers:
             x = layer(x)

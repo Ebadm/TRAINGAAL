@@ -1,0 +1,3 @@
+We have fixed the dimensions.
+self.embedding = nn.Linear(seq_len * feature_dim, seq_len * embed_dim)  # Change here
+        x = self.embedding(x.view(batch_size, -1)).view(batch_size, self.seq_len, self.embed_dim)  # Change here
