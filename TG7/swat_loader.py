@@ -24,16 +24,17 @@ class swat_load_dataset(Dataset):
                 print("Successfully Unpacked")
             data = np.load('attack_data.npy', allow_pickle=True)
             last_column = data[:, -1]  # Extract the last column
+            last_column[last_column == 'A ttack'] = 'Attack'
             last_column[last_column == 'Normal'] = 0
             last_column[last_column == 'Attack'] = 1
-
-
             # Update the modified column back into the original array
             data[:, -1] = last_column
+            self.labels = last_column
+            self.labels = self.labels.astype(int)
             data_normal = data[last_column == 0]
             data_attack = data[last_column == 1]
+            x_train = data[:, :-1]
 
-            x_train = data_normal[:, :-1]
             print("Total shape is:", data.shape)
             print("Attack shape is:", x_train.shape)
 
@@ -94,13 +95,12 @@ class swat_load_dataset(Dataset):
 
             return windowed_data
 
-
     def __getitem__(self, index):
         # Get a window of data at the given index
         window = self.data[index]
-        # Use a dummy target since it's not being used in your training loop
-        dummy_target = torch.tensor(0)
-        return window, dummy_target
+        # Get the corresponding label
+        label = self.labels[index]
+        return window, label
 
 
     def __len__(self):

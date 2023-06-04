@@ -11,6 +11,8 @@ import numpy as np
 from scipy.special import kl_div
 import matplotlib.pyplot as plt
 import gc
+from scipy import stats
+from sklearn.metrics import f1_score, precision_recall_curve, auc, roc_auc_score
 
 
 def calculate_mse(array1, array2):
@@ -30,10 +32,22 @@ class Synthetic_Dataset(Dataset):
         gen_net.load_state_dict(generator)
         dis_net.load_state_dict(discriminator)
         dataset = swat_load_dataset(is_train=True, is_attack=True)
+        labels = dataset.get_labels_attack()
+        print(np.unique(labels))
+        unique, counts = np.unique(labels, return_counts=True)
+        counts_dict = dict(zip(unique, counts))
+        print(counts_dict)
+
         data_loader = data.DataLoader(dataset, batch_size=16, shuffle=False, num_workers=0)
         anomaly_scores = []
+        g_scores = []
+        d_scores = []
+        anomaly = []
+        total, hit = 0, 0
+        tp, fp, fn = 0, 0, 0
+
         with torch.no_grad():
-            for batch_idx, (real_data, _) in enumerate(data_loader):
+            for batch_idx, (real_data, labels) in enumerate(data_loader):
                 real_data = real_data.to(device)
                 real_data = Variable(real_data).to(device)
                 batch_size, sliding_window_length, features_size = real_data.size()
@@ -44,20 +58,44 @@ class Synthetic_Dataset(Dataset):
                 discriminator_output_syn = dis_net(synthetic_sample)
                 d_loss = -torch.mean(discriminator_output_real) + torch.mean(discriminator_output_syn)
                 g_loss = -torch.mean(discriminator_output_syn)
-                alpha = 0.3
-                ads_loss = (1 - alpha) * d_loss + alpha * g_loss
+                alpha = 0.25
+                ads_loss = (1 - alpha) * d_loss -  alpha * g_loss
                 anomaly_scores.append(ads_loss.item())
+                d_scores.append(d_loss.item())
+                g_scores.append(g_loss.item())
+                boundary_res = ads_loss.item() > 4
+                anomaly.append(boundary_res)
+                most_common_label = stats.mode(labels.numpy()).mode[0]
+                hit = hit + 1 if most_common_label==boundary_res else hit
+                total += 1
+                if most_common_label and boundary_res:
+                    tp += 1
+                elif not most_common_label and boundary_res:
+                    fp += 1
+                elif most_common_label and not boundary_res:
+                    fn += 1
 
                 real_data = real_data.cpu().detach().numpy()
                 synthetic_sample = synthetic_sample.cpu().detach().numpy()
-                print("Batch [{}/{}], ADS: {:.4f}".format(batch_idx, len(data_loader), ads_loss.item()))
-                # visualization(real_data, synthetic_sample, 'tsne', 'Running-tsne')
+                print("Batch [{}/{}], ADS: {:.4f} [GLOSS: {:.4f} | DLOSS: {:.4f} for {:.4f}]".format(batch_idx, len(data_loader), ads_loss.item(), g_loss, d_loss, most_common_label))
 
+
+        anomalies = np.array(anomaly)
         anomaly_scores = np.array(anomaly_scores)
         print("AVERAGE: ", np.mean(anomaly_scores))
         print("MAX: ", np.max(anomaly_scores))
         print("MIN: ", np.min(anomaly_scores))
+        print("AVG GLOSS: {:.4f} | MAX GLOSS: {:.4f} | MIN GLOSS: {:.4f}]".format(np.mean(g_scores), np.max(g_scores), np.min(g_scores)))
+        print("AVG DLOSS: {:.4f} | MAX DLOSS: {:.4f} | MIN DLOSS: {:.4f}]".format(np.mean(d_scores), np.max(d_scores), np.min(d_scores)))
+        print("Accuracy: ", hit/total)
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        f1 = 2 * precision * recall / (precision + recall)
         
+        print("Precision: ", precision)
+        print("Recall: ", recall)
+        print("F1 score: ", f1)
+
 
 enable_cuda = True
 # Check if CUDA is available and enabled
