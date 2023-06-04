@@ -23,7 +23,7 @@ class swat_load_dataset(Dataset):
             print("Successfully Unpacked")
 
 
-        window_size = 30  # Set this to the desired window size
+        window_size = 60  # Set this to the desired window size
 
 
         x_train = np.load('swat-2015-data.npy')

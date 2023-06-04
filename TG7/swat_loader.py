@@ -22,9 +22,20 @@ class swat_load_dataset(Dataset):
                 os.listdir('.')
                 shutil.unpack_archive('./swat_attack_data.zip', '.', 'zip')
                 print("Successfully Unpacked")
-            x_train = np.load('attack_data.npy', allow_pickle=True)
-            print(x_train.shape)
-            exit()
+            data = np.load('attack_data.npy', allow_pickle=True)
+            last_column = data[:, -1]  # Extract the last column
+            last_column[last_column == 'Normal'] = 0
+            last_column[last_column == 'Attack'] = 1
+
+
+            # Update the modified column back into the original array
+            data[:, -1] = last_column
+            data_normal = data[last_column == 0]
+            data_attack = data[last_column == 1]
+
+            x_train = data_normal[:, :-1]
+            print("Total shape is:", data.shape)
+            print("Attack shape is:", x_train.shape)
 
         else:
             # Download and unzip original dataset
@@ -39,10 +50,10 @@ class swat_load_dataset(Dataset):
             x_train = np.load('swat-2015-data.npy')
             x_train = x_train[:10000, :]
 
-
+        print(x_train.shape)
         # Create sliding windows
         x_train_windows = self.create_windows(x_train, self.window_size)
-
+        print(x_train_windows.shape)
         # Split the data into training and test sets
         split_idx = int(split_ratio * len(x_train_windows))
 
@@ -51,13 +62,17 @@ class swat_load_dataset(Dataset):
         else:
             self.data = x_train_windows[split_idx:]
 
+        print(self.data.shape)
         # Convert to PyTorch tensors
+        self.data = self.data.astype(np.float32)
         self.data = torch.tensor(self.data, dtype=torch.float32)
 
 
         if self.verbose:
             print("Shape of Data", self.data.shape)
 
+    def get_labels_attack(self):
+        return self.labels
 
     def create_windows(self, data, window_size):
             """
@@ -120,6 +135,3 @@ class swat_load_dataset(Dataset):
 
         return data_normal, data_attack, labels_normal, labels_attack
 
-
-
-swat_load_dataset(is_attack=True)

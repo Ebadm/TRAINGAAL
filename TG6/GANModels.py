@@ -6,7 +6,7 @@ from einops.layers.torch import Rearrange
 
 
 class Generator(nn.Module):
-    def __init__(self, seq_len=30, feature_dim=51, latent_dim=51, embed_dim=128, num_heads=4, num_layers=3):
+    def __init__(self, seq_len=60, feature_dim=51, latent_dim=51, embed_dim=128, num_heads=4, num_layers=3):
         super(Generator, self).__init__()
         self.seq_len = seq_len
         self.feature_dim = feature_dim
@@ -107,7 +107,7 @@ class FeedForward(nn.Module):
    
 
 class Discriminator(nn.Module):
-    def __init__(self, seq_len=30, feature_dim=51, embed_dim=128, num_heads=4, num_layers=3):
+    def __init__(self, seq_len=60, feature_dim=51, embed_dim=128, num_heads=4, num_layers=3):
         super(Discriminator, self).__init__()
         self.seq_len = seq_len
         self.feature_dim = feature_dim

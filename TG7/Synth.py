@@ -1,5 +1,3 @@
-from sklearn.metrics import f1_score, precision_score, recall_score
-from torch.nn.functional import kl_div
 from torch.utils.data import Dataset, DataLoader
 import torch.utils.data as data
 import torch
@@ -8,62 +6,55 @@ from swat_loader import *
 from torch.autograd.variable import Variable
 import numpy as np
 import os
+from visualizationMetrics import visualization
 import numpy as np
 from scipy.special import kl_div
 import matplotlib.pyplot as plt
-from visualizationMetrics import visualization
-from torch.nn.functional import kl_div
-from sklearn.metrics import f1_score, precision_score, recall_score
+
+
+def calculate_mse(array1, array2):
+    assert array1.shape == array2.shape, "Arrays must have the same shape"
+    squared_diff = np.square(array1 - array2)
+    mse = np.mean(squared_diff)
+    return mse
+
 
 class Synthetic_Dataset(Dataset):
-    def __init__(self, generator_path='generator.pth', device=torch.device('cpu'), threshold=0.1):
-        self.gen_net = Generator().to(device)
-        self.device = device
-        self.threshold = threshold
-        generator = torch.load(generator_path, map_location=self.device)
-        self.gen_net.load_state_dict(generator)
-        self.gen_net.eval()  # Set the generator in evaluation mode
-
-        # Load the test data
-        self.dataset = swat_load_dataset(is_train=False)
-
-        # DataLoader
-        self.data_loader = DataLoader(self.dataset, batch_size=128, shuffle=False, num_workers=0)
-
-        # To store KL divergence values for each batch
-        self.kl_divergences = []
-
-    def calculate_metrics(self):
-        for batch_idx, (real_data, _) in enumerate(self.data_loader):
-            real_data = real_data.to(self.device)
+    def __init__(self):
+        gen_net = Generator().to(device)
+        generator = torch.load('generator.pth', map_location=device)
+        gen_net.load_state_dict(generator)
+        dataset = swat_load_dataset(is_train=True, is_attack=True)
+        data_loader = data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=0)
+        anomaly_scores = []
+        for batch_idx, (real_data, _) in enumerate(data_loader):
+            real_data = real_data.to(device)
+            real_data = Variable(real_data).to(device)
             batch_size, sliding_window_length, features_size = real_data.size()
-
-            # Compute the average across the sliding window dimension
             real_data_avg = torch.mean(real_data, dim=1)
-
-            # Reshape the tensor to have shape (batch_size, features_size)
             real_data_avg = real_data_avg.view(batch_size, features_size)
+            synthetic_sample = gen_net(real_data_avg)
 
-            # Generate synthetic sample
-            synthetic_sample = self.gen_net(real_data_avg)
-
-            # Calculate KL divergence and store it
-            kl_divergence = kl_div(real_data, synthetic_sample).sum()
-            self.kl_divergences.append(kl_divergence.item())
-
-            # Detach the tensors and convert them to numpy for visualization
             real_data = real_data.cpu().detach().numpy()
             synthetic_sample = synthetic_sample.cpu().detach().numpy()
 
-            # Visualize the real and synthetic data
+            # Calculate reconstruction error (MSE)
+            reconstruction_error = np.mean(np.square(real_data - synthetic_sample), axis=(1, 2))
+            print(np.mean(reconstruction_error))
+            # Append anomaly scores to the list
+            anomaly_scores.append(np.mean(reconstruction_error))
+            print("Batch [{}/{}], Mean Squared Error: {:.4f}".format(batch_idx, len(data_loader), np.mean(reconstruction_error)))
             #visualization(real_data, synthetic_sample, 'tsne', 'Running-tsne')
+        print("AVERAGE: ",sum(anomaly_scores) / len(anomaly_scores))
 
-        # Calculate and print the average KL divergence
-        avg_kl_divergence = np.mean(self.kl_divergences)
-        print("Average KL Divergence across all batches: ", avg_kl_divergence)
+enable_cuda = True
+if enable_cuda and torch.cuda.is_available():
+    device = torch.device('cuda')
+    print("CUDA is enabled. Training on GPU.")
+else:
+    device = torch.device('cpu')
+    print("Training on CPU.")
 
-device = torch.device('cpu')
-print("Training on CPU.")
-synthetic_dataset = Synthetic_Dataset(device=device)
-synthetic_dataset.calculate_metrics()
+synthentic_dataset = Synthetic_Dataset()
+
 

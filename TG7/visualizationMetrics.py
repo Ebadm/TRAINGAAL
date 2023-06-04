@@ -75,21 +75,10 @@ def visualization (ori_data, generated_data, analysis, save_name):
 
         # Do t-SNE Analysis together       
         prep_data_final = np.concatenate((prep_data, prep_data_hat), axis = 0)
+
         # TSNE anlaysis
         tsne = TSNE(n_components = 2, verbose = 1, perplexity = 40, n_iter = 300)
         tsne_results = tsne.fit_transform(prep_data_final)
-
-        tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
-        tsne_results = tsne.fit_transform(prep_data_final)
-
-        mean_sigma = tsne.kl_divergence_[-1]  # Last value represents mean sigma
-        kl_divergence_250 = tsne.kl_divergence_[250]  # KL divergence after 250 iterations
-        kl_divergence_300 = tsne.kl_divergence_[-2]  # Second last value represents KL divergence after 300 iterations
-
-        print(f"[t-SNE] Mean sigma: {mean_sigma:.6f}")
-        print(f"[t-SNE] KL divergence after 250 iterations with early exaggeration: {kl_divergence_250:.6f}")
-        print(f"[t-SNE] KL divergence after 300 iterations: {kl_divergence_300:.6f}")
-
 
         # Plotting
         f, ax = plt.subplots(1)
